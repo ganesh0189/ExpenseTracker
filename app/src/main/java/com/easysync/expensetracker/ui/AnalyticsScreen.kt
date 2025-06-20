@@ -1,12 +1,19 @@
 package com.easysync.expensetracker.ui
 
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.easysync.expensetracker.ui.viewmodel.AnalyticsViewModel
@@ -19,6 +26,26 @@ import com.patrykandpatryk.vico.core.entry.entryOf
 @Composable
 fun AnalyticsScreen(analyticsViewModel: AnalyticsViewModel = viewModel()) {
     val analyticsData by analyticsViewModel.analyticsData.collectAsState()
+    val csvData by analyticsViewModel.csvData.collectAsState()
+    val context = LocalContext.current as Activity
+
+    val fileSaverLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv"),
+        onResult = { uri: Uri? ->
+            uri?.let {
+                context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                    outputStream.write(csvData?.toByteArray())
+                }
+            }
+            analyticsViewModel.onCsvExportDone()
+        }
+    )
+
+    LaunchedEffect(csvData) {
+        if (csvData != null) {
+            fileSaverLauncher.launch("expenses.csv")
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -27,7 +54,12 @@ fun AnalyticsScreen(analyticsViewModel: AnalyticsViewModel = viewModel()) {
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
-                )
+                ),
+                actions = {
+                    Button(onClick = { analyticsViewModel.prepareCsvExport() }) {
+                        Text("Export CSV")
+                    }
+                }
             )
         }
     ) { padding ->
