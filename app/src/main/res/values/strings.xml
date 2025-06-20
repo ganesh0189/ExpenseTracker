@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ExpenseTracker</string>
+    <string name="default_web_client_id">your_web_client_id</string>
+</resources>
