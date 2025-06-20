@@ -12,23 +12,23 @@ class ExpenseViewModel : ViewModel() {
 
     private val repository = ExpenseRepository()
 
-    private val _expenses = MutableStateFlow<List<Expense>>(emptyList())
-    val expenses: StateFlow<List<Expense>> = _expenses
+    private val _currentMonthExpenses = MutableStateFlow<List<Expense>>(emptyList())
+    val currentMonthExpenses: StateFlow<List<Expense>> = _currentMonthExpenses
 
     init {
-        loadExpenses()
+        loadCurrentMonthExpenses()
     }
 
-    private fun loadExpenses() {
+    private fun loadCurrentMonthExpenses() {
         viewModelScope.launch {
-            _expenses.value = repository.getExpenses()
+            _currentMonthExpenses.value = repository.getCurrentMonthExpenses()
         }
     }
 
     fun addExpense(expense: Expense) {
         viewModelScope.launch {
             repository.saveExpense(expense)
-            loadExpenses() // Refresh the list
+            loadCurrentMonthExpenses() // Refresh the list
         }
     }
 }

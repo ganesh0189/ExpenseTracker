@@ -4,16 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -21,16 +19,21 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.easysync.expensetracker.data.Expense
 import com.easysync.expensetracker.ui.theme.ExpenseTrackerTheme
 import com.easysync.expensetracker.ui.viewmodel.AuthViewModel
 import com.easysync.expensetracker.ui.viewmodel.ExpenseViewModel
+import com.easysync.expensetracker.ui.viewmodel.GroupViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : ComponentActivity() {
-    private val expenseViewModel: ExpenseViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
+    private val expenseViewModel: ExpenseViewModel by viewModels()
+    private val groupViewModel: GroupViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,11 +45,13 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val user by authViewModel.user.collectAsState()
                     if (user == null) {
-                        LoginScreen(authViewModel = authViewModel, onLoginSuccess = {
-                            // Recomposition will handle the screen change
-                        })
+                        LoginScreen(authViewModel = authViewModel, onLoginSuccess = { /* ... */ })
                     } else {
-                        HomeScreen(expenseViewModel, authViewModel)
+                        AppMainScreen(
+                            expenseViewModel = expenseViewModel,
+                            authViewModel = authViewModel,
+                            groupViewModel = groupViewModel
+                        )
                     }
                 }
             }
@@ -55,17 +60,49 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun AppMainScreen(
+    expenseViewModel: ExpenseViewModel,
+    authViewModel: AuthViewModel,
+    groupViewModel: GroupViewModel
+) {
+    val navController = rememberNavController()
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
+                    selected = true, // Simplified for now
+                    onClick = { navController.navigate("home") }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.List, contentDescription = "Groups") },
+                    label = { Text("Groups") },
+                    selected = false, // Simplified for now
+                    onClick = { navController.navigate("groups") }
+                )
+            }
+        }
+    ) { padding ->
+        NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(padding)) {
+            composable("home") { HomeScreen(expenseViewModel, authViewModel) }
+            composable("groups") { GroupScreen(groupViewModel) }
+        }
+    }
+}
+
+@Composable
 fun HomeScreen(expenseViewModel: ExpenseViewModel, authViewModel: AuthViewModel) {
-    val expenses by expenseViewModel.expenses.collectAsState()
+    val expenses by expenseViewModel.currentMonthExpenses.collectAsState()
     var showAddExpenseDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Expense Tracker") },
+                title = { Text("This Month's Expenses") },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
                 ),
                 actions = {
                     IconButton(onClick = { authViewModel.signOut() }) {
@@ -83,6 +120,7 @@ fun HomeScreen(expenseViewModel: ExpenseViewModel, authViewModel: AuthViewModel)
         Column(modifier = Modifier.padding(padding)) {
             if (showAddExpenseDialog) {
                 AddExpenseDialog(
+                    groups = emptyList(),
                     onAddExpense = { expense ->
                         expenseViewModel.addExpense(expense)
                         showAddExpenseDialog = false
@@ -127,11 +165,17 @@ fun ExpenseItem(expense: Expense) {
 }
 
 @Composable
-fun AddExpenseDialog(onAddExpense: (Expense) -> Unit, onDismiss: () -> Unit) {
+fun AddExpenseDialog(
+    groups: List<ExpenseGroup>,
+    onAddExpense: (Expense) -> Unit,
+    onDismiss: () -> Unit
+) {
     var title by remember { mutableStateOf(TextFieldValue("")) }
     var amount by remember { mutableStateOf(TextFieldValue("")) }
     var payer by remember { mutableStateOf(TextFieldValue("")) }
     var sharedWith by remember { mutableStateOf(TextFieldValue("")) }
+    var selectedGroup by remember { mutableStateOf<ExpenseGroup?>(null) }
+    var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -142,6 +186,36 @@ fun AddExpenseDialog(onAddExpense: (Expense) -> Unit, onDismiss: () -> Unit) {
                 TextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") })
                 TextField(value = payer, onValueChange = { payer = it }, label = { Text("Payer") })
                 TextField(value = sharedWith, onValueChange = { sharedWith = it }, label = { Text("Shared with (comma-separated)") })
+                
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        readOnly = true,
+                        value = selectedGroup?.name ?: "Select Group (Optional)",
+                        onValueChange = { },
+                        label = { Text("Group") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        },
+                        modifier = Modifier.menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        groups.forEach { group ->
+                            DropdownMenuItem(
+                                text = { Text(group.name) },
+                                onClick = {
+                                    selectedGroup = group
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -151,7 +225,8 @@ fun AddExpenseDialog(onAddExpense: (Expense) -> Unit, onDismiss: () -> Unit) {
                         title = title.text,
                         amount = amount.text.toDoubleOrNull() ?: 0.0,
                         payer = payer.text,
-                        sharedWith = sharedWith.text.split(",").map { it.trim() }
+                        sharedWith = sharedWith.text.split(",").map { it.trim() },
+                        groupId = selectedGroup?.id
                     )
                     onAddExpense(expense)
                 }
