@@ -58,4 +58,19 @@ class ExpenseRepository {
             emptyList()
         }
     }
+
+    suspend fun getExpensesForGroup(groupId: String): List<Expense> {
+        return try {
+            val snapshot = expensesCollection
+                .whereEqualTo("groupId", groupId)
+                .orderBy("date", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { document ->
+                document.toObject(Expense::class.java)?.apply { id = document.id }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }

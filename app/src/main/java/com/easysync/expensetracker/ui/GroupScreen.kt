@@ -1,5 +1,6 @@
 package com.easysync.expensetracker.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,13 +11,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.easysync.expensetracker.data.ExpenseGroup
 import com.easysync.expensetracker.ui.viewmodel.GroupViewModel
 
 @Composable
-fun GroupScreen(groupViewModel: GroupViewModel = viewModel()) {
+fun GroupScreen(
+    groupViewModel: GroupViewModel = viewModel(),
+    navController: NavController
+) {
     val groups by groupViewModel.groups.collectAsState()
-    var showCreateGroupDialog by remember { mutableState of(false) }
+    var showCreateGroupDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -44,26 +49,29 @@ fun GroupScreen(groupViewModel: GroupViewModel = viewModel()) {
                     onDismiss = { showCreateGroupDialog = false }
                 )
             }
-            GroupList(groups = groups)
+            GroupList(groups = groups, onGroupClick = { groupId ->
+                navController.navigate("groupDetail/$groupId")
+            })
         }
     }
 }
 
 @Composable
-fun GroupList(groups: List<ExpenseGroup>) {
+fun GroupList(groups: List<ExpenseGroup>, onGroupClick: (String) -> Unit) {
     LazyColumn {
         items(groups) { group ->
-            GroupItem(group)
+            GroupItem(group, onGroupClick = { onGroupClick(group.id) })
         }
     }
 }
 
 @Composable
-fun GroupItem(group: ExpenseGroup) {
+fun GroupItem(group: ExpenseGroup, onGroupClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp)
+            .clickable(onClick = onGroupClick)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = group.name, style = MaterialTheme.typography.titleLarge)

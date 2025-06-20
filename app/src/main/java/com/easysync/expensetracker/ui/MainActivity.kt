@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -27,6 +28,7 @@ import com.easysync.expensetracker.ui.theme.ExpenseTrackerTheme
 import com.easysync.expensetracker.ui.viewmodel.AuthViewModel
 import com.easysync.expensetracker.ui.viewmodel.ExpenseViewModel
 import com.easysync.expensetracker.ui.viewmodel.GroupViewModel
+import com.easysync.expensetracker.ui.viewmodel.AnalyticsViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -34,6 +36,7 @@ class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private val expenseViewModel: ExpenseViewModel by viewModels()
     private val groupViewModel: GroupViewModel by viewModels()
+    private val analyticsViewModel: AnalyticsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +53,8 @@ class MainActivity : ComponentActivity() {
                         AppMainScreen(
                             expenseViewModel = expenseViewModel,
                             authViewModel = authViewModel,
-                            groupViewModel = groupViewModel
+                            groupViewModel = groupViewModel,
+                            analyticsViewModel = analyticsViewModel
                         )
                     }
                 }
@@ -63,7 +67,8 @@ class MainActivity : ComponentActivity() {
 fun AppMainScreen(
     expenseViewModel: ExpenseViewModel,
     authViewModel: AuthViewModel,
-    groupViewModel: GroupViewModel
+    groupViewModel: GroupViewModel,
+    analyticsViewModel: AnalyticsViewModel
 ) {
     val navController = rememberNavController()
     Scaffold(
@@ -81,12 +86,31 @@ fun AppMainScreen(
                     selected = false, // Simplified for now
                     onClick = { navController.navigate("groups") }
                 )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Analytics") },
+                    label = { Text("Analytics") },
+                    selected = false, // Simplified for now
+                    onClick = { navController.navigate("analytics") }
+                )
             }
         }
     ) { padding ->
         NavHost(navController = navController, startDestination = "home", modifier = Modifier.padding(padding)) {
             composable("home") { HomeScreen(expenseViewModel, authViewModel) }
-            composable("groups") { GroupScreen(groupViewModel) }
+            composable("groups") { GroupScreen(groupViewModel, navController) }
+            composable("analytics") { AnalyticsScreen(analyticsViewModel) }
+            composable("groupDetail/{groupId}") { backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString("groupId")
+                if (groupId != null) {
+                    GroupDetailScreen(groupId = groupId, navController = navController)
+                }
+            }
+            composable("settleUp/{groupId}") { backStackEntry ->
+                val groupId = backStackEntry.arguments?.getString("groupId")
+                if (groupId != null) {
+                    SettleUpScreen(groupId = groupId)
+                }
+            }
         }
     }
 }
@@ -174,6 +198,7 @@ fun AddExpenseDialog(
     var amount by remember { mutableStateOf(TextFieldValue("")) }
     var payer by remember { mutableStateOf(TextFieldValue("")) }
     var sharedWith by remember { mutableStateOf(TextFieldValue("")) }
+    var category by remember { mutableStateOf(TextFieldValue("")) }
     var selectedGroup by remember { mutableStateOf<ExpenseGroup?>(null) }
     var expanded by remember { mutableStateOf(false) }
 
@@ -184,6 +209,7 @@ fun AddExpenseDialog(
             Column {
                 TextField(value = title, onValueChange = { title = it }, label = { Text("Title") })
                 TextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") })
+                TextField(value = category, onValueChange = { category = it }, label = { Text("Category") })
                 TextField(value = payer, onValueChange = { payer = it }, label = { Text("Payer") })
                 TextField(value = sharedWith, onValueChange = { sharedWith = it }, label = { Text("Shared with (comma-separated)") })
                 
@@ -226,7 +252,8 @@ fun AddExpenseDialog(
                         amount = amount.text.toDoubleOrNull() ?: 0.0,
                         payer = payer.text,
                         sharedWith = sharedWith.text.split(",").map { it.trim() },
-                        groupId = selectedGroup?.id
+                        groupId = selectedGroup?.id,
+                        category = category.text.ifBlank { "Default" }
                     )
                     onAddExpense(expense)
                 }
