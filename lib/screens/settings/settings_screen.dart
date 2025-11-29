@@ -34,7 +34,6 @@ class SettingsScreen extends StatelessWidget {
                 _buildProfileSection(context),
                 const SizedBox(height: 20),
                 _buildSection(context, 'Preferences', [
-                  _buildThemeTile(context),
                   _buildBudgetTile(context),
                   _buildTile(
                     icon: Icons.category,
@@ -42,6 +41,9 @@ class SettingsScreen extends StatelessWidget {
                     subtitle: 'Manage expense categories',
                     onTap: () => Navigator.pushNamed(context, Routes.categories),
                   ),
+                ]),
+                _buildSection(context, 'Friends', [
+                  _buildFriendsTile(context),
                 ]),
                 _buildSection(context, 'Auto-Detection', [
                   _buildAutoDetectTile(context),
@@ -267,52 +269,6 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildThemeTile(BuildContext context) {
-    return Consumer<SettingsProvider>(
-      builder: (context, settingsProvider, child) {
-        return _buildTile(
-          icon: Icons.dark_mode,
-          title: 'Theme',
-          subtitle: _getThemeName(settingsProvider.themeMode),
-          trailing: DropdownButton<ThemeMode>(
-            value: settingsProvider.themeMode,
-            dropdownColor: AppColors.darkSurface,
-            underline: const SizedBox(),
-            icon: const Icon(
-              Icons.arrow_drop_down,
-              color: AppColors.textLightSecondary,
-            ),
-            items: ThemeMode.values.map((mode) {
-              return DropdownMenuItem(
-                value: mode,
-                child: Text(
-                  _getThemeName(mode),
-                  style: const TextStyle(color: AppColors.textLight),
-                ),
-              );
-            }).toList(),
-            onChanged: (mode) {
-              if (mode != null) {
-                settingsProvider.setThemeMode(mode);
-              }
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  String _getThemeName(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'Light';
-      case ThemeMode.dark:
-        return 'Dark';
-      default:
-        return 'System';
-    }
-  }
-
   Widget _buildBudgetTile(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settingsProvider, child) {
@@ -323,6 +279,15 @@ class SettingsScreen extends StatelessWidget {
           onTap: () => _showBudgetDialog(context, settingsProvider.monthlyBudget),
         );
       },
+    );
+  }
+
+  Widget _buildFriendsTile(BuildContext context) {
+    return _buildTile(
+      icon: Icons.people,
+      title: 'Manage Friends',
+      subtitle: 'Add, edit friends & view balances',
+      onTap: () => Navigator.pushNamed(context, Routes.friends),
     );
   }
 

@@ -47,18 +47,14 @@ class MoneyTrackerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LoanProvider()),
         ChangeNotifierProvider(create: (_) => ExpenseProvider()),
       ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settingsProvider, child) {
-          return MaterialApp(
-            title: 'Money Tracker',
-            debugShowCheckedModeBanner: false,
-            theme: lightTheme,
-            darkTheme: darkTheme,
-            themeMode: settingsProvider.themeMode,
-            initialRoute: Routes.splash,
-            onGenerateRoute: generateRoute,
-          );
-        },
+      child: MaterialApp(
+        title: 'Money Tracker',
+        debugShowCheckedModeBanner: false,
+        theme: darkTheme,
+        darkTheme: darkTheme,
+        themeMode: ThemeMode.dark,
+        initialRoute: Routes.splash,
+        onGenerateRoute: generateRoute,
       ),
     );
   }
